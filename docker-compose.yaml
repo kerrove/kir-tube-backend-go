@@ -1,0 +1,13 @@
+name: kir-tube
+services:
+  database:
+    container_name: kir-tube-db
+    image: postgres:alpine
+    ports:
+      - 5432:5432
+    env_file:
+      - ./.env
+    volumes:
+      - postgres_data:/data/postgres
+volumes:
+  postgres_data:
