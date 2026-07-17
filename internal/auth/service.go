@@ -15,6 +15,8 @@ type IUserService interface {
 	Create(email, password string) (*user.User, error)
 	GetById(string) (*user.User, error)
 	GetByEmail(string) (*user.User, error)
+	GetByVerifyToken(token string) (*user.User, error)
+	Update(body *user.User) (*user.User, error)
 }
 type UserTokens struct {
 	AccessToken  string `json:"accessToken"`
@@ -107,6 +109,20 @@ func (s *AuthService) buildResponseObject(user *user.User) (*AuthUser, error) {
 		return &AuthUser{}, err
 	}
 	return &AuthUser{User: *user, AccessToken: tokens.AccessToken, RefreshToken: tokens.RefreshToken}, nil
+}
+func (s *AuthService) verifyEmail(token string) (string, error) {
+	expectedUser, err := s.UserService.GetByVerifyToken(token)
+	if err != nil {
+		return "", err
+	}
+
+	expectedUser.VerificationToken = nil
+	_, err = s.UserService.Update(expectedUser)
+	if err != nil {
+		return "", err
+	}
+
+	return "Email verified!", nil
 }
 func (s *AuthService) GetNewTokens(refreshToken string) (*AuthUser, error) {
 	isValid, data := jwt.NewJWT(s.Config.Auth.Secret).Parse(refreshToken)

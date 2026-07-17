@@ -70,3 +70,76 @@ go mod tidy
 
 Docker (`Dockerfile` / `docker-compose.yaml`) is scaffolded but empty; there is
 no working container build yet.
+
+# Development Architecture Guidelines
+
+This document outlines the core architectural principles and patterns required for this project. All code contributions must adhere to these standards to ensure maintainability, scalability, and testability.
+
+---
+
+## 1. Dependency Injection (DI)
+
+We use Dependency Injection to achieve **Inversion of Control (IoC)**. Components must not instantiate their dependencies directly. Instead, dependencies must be provided (injected) from the outside.
+
+### Guidelines
+
+- **Constructor Injection:** Prefer constructor injection for all required dependencies. This makes dependencies explicit and simplifies testing.
+- **Interface-Driven:** Program to interfaces, not implementations. Inject the interface type to allow swapping implementations (e.g., swapping a production database service for a mock repository in tests).
+- **Decoupling:** High-level modules must not depend on low-level modules; both must depend on abstractions.
+
+---
+
+## 2. SOLID Principles
+
+Every module, class, and function must respect the five SOLID principles of object-oriented design:
+
+- **Single Responsibility Principle (SRP):** A class should have one, and only one, reason to change. Separate business logic, data access, and presentation layers.
+- **Open/Closed Principle (OCP):** Software entities should be open for extension, but closed for modification. Use polymorphism and interfaces to add new behavior without altering existing code.
+- **Liskov Substitution Principle (LSP):** Subtypes must be completely substitutable for their base types without breaking the application behavior.
+- **Interface Segregation Principle (ISP):** Clients should not be forced to depend on methods they do not use. Prefer many small, client-specific interfaces over one large, general-purpose interface.
+- **Dependency Inversion Principle (DIP):** Depend on abstractions, not concretions. (See the _Dependency Injection_ section above).
+
+---
+
+## 3. Domain-Driven Design (DDD)
+
+The codebase is structured around the business domain. We separate the technical implementation details from the core business logic.
+
+### Core Concepts to Follow
+
+- **Bounded Contexts:** Clear boundaries must be defined around specific parts of the domain. Avoid bleeding models across different contexts (e.g., a `User` in an Auth context is different from a `Customer` in a Billing context).
+- **Ubiquitous Language:** Code terminology (class names, methods, variables) must strictly match the business vocabulary used by domain experts.
+- **Domain Models:**
+  - **Entities:** Objects with a distinct identity that persists over time (e.g., `Order` with a unique ID).
+  - **Value Objects:** Objects defined solely by their attributes, with no conceptual identity. They must be **immutable** (e.g., `Money`, `Address`).
+  - **Aggregates:** A cluster of associated objects treated as a single unit for data changes. Every aggregate has a root entity through which all external interactions must pass.
+
+---
+
+## 4. Clean Architecture
+
+The application enforces a strict separation of concerns using a layered approach, ensuring that the business logic is independent of frameworks, UI, and databases.
+
+### The Dependency Rule
+
+Source code dependencies must only point **inwards**, toward the core business logic. The inner layers must know nothing about the outer layers.
+
+### Layer Hierarchy (Inner to Outer)
+
+1. **Entities (Domain Layer):** \* Encapsulates enterprise-wide business rules and core domain models.
+   - Has zero dependencies on external frameworks, libraries, or databases.
+2. **Use Cases (Application Layer):** \* Contains application-specific business rules.
+   - Orchestrates the flow of data to and from the entities.
+   - Defines interfaces for external dependencies (e.g., `UserRepositoryInterface`).
+3. **Interface Adapters (Presentation/Infrastructure Layer):** \* Converts data from the format most convenient for use cases and entities to the format most convenient for external agencies (UI, DB, Web APIs).
+   - Includes Controllers, Presenters, and Repository implementations.
+4. **Frameworks & Drivers:** \* The outermost layer consisting of tools such as databases, web frameworks, UI engines, and third-party SDKs.
+
+---
+
+## Code Review Checklist for AI & Contributors
+
+- [ ] Are dependencies injected via constructors rather than hardcoded with `new`?
+- [ ] Does this class have a single responsibility?
+- [ ] Are domain models free of framework-specific annotations/dependencies where possible?
+- [ ] Does the data flow respect the Clean Architecture dependency rule (no outer-layer leaks into the inner core)?

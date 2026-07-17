@@ -3,12 +3,14 @@ package user
 import (
 	"go/kir-tube/configs"
 	"go/kir-tube/pkg/db"
+	"go/kir-tube/pkg/di"
 	"net/http"
 )
 
 type UserModuleDeps struct {
-	Config *configs.Config
-	Db     *db.Db
+	Config          *configs.Config
+	Db              *db.Db
+	VideoRepository di.IVideoRepository
 }
 type UserModule struct {
 	UserService *UserService
@@ -17,7 +19,10 @@ type UserModule struct {
 func NewUserModule(router *http.ServeMux, deps UserModuleDeps) *UserModule {
 	userRepository := NewUserRepository(deps.Db)
 	userService :=
-		NewUserService(&UserServiceDeps{UserRepository: userRepository})
+		NewUserService(&UserServiceDeps{
+			UserRepository:  userRepository,
+			VideoRepository: deps.VideoRepository,
+		})
 	NewUserHandler(router, UserHandlerDeps{
 		UserService: userService,
 		Config:      deps.Config,

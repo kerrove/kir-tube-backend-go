@@ -29,10 +29,11 @@ func NewAuthHandler(router *http.ServeMux, deps AuthHandlerDeps) {
 		AuthService: deps.AuthService,
 	}
 
-	logs.RouteLog(router, "POST /auth/login", handler.Login())
-	logs.RouteLog(router, "POST /auth/register", handler.Register())
 	logs.RouteLog(router, "POST /auth/access-token", handler.GetNewTokens())
+	logs.RouteLog(router, "POST /auth/register", handler.Register())
 	logs.RouteLog(router, "POST /auth/logout", handler.Logout())
+	logs.RouteLog(router, "POST /auth/login", handler.Login())
+	logs.RouteLog(router, "POST /verify-email", handler.VerifyEmail())
 }
 
 func (handler *AuthHandler) Login() http.HandlerFunc {
@@ -80,12 +81,28 @@ func (handler *AuthHandler) Logout() http.HandlerFunc {
 	}
 
 }
+
+func (h *AuthHandler) VerifyEmail() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := r.URL.Query().Get("token")
+
+		if token == "" {
+			http.Error(w, "Token not passed", http.StatusUnauthorized)
+			return
+		}
+
+		h.AuthService.verifyEmail(token)
+
+		res.Json(w, true, 200)
+	}
+
+}
 func (handler *AuthHandler) GetNewTokens() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		cookie, err := req.Cookie(RefreshTokenName)
 		if err != nil {
 			handler.AuthService.RemoveRefreshTokenFromResponse(w)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 

@@ -6,8 +6,6 @@ import (
 	"go/kir-tube/pkg/gormx"
 )
 
-// Video is an uploaded clip belonging to a channel. Mirrors the Prisma
-// "video" model.
 type Video struct {
 	gormx.TimestampedBase
 
@@ -23,7 +21,6 @@ type Video struct {
 	ViewsCount int  `json:"viewsCount" gorm:"not null;default:0"`
 	IsPublic   bool `json:"isPublic" gorm:"not null;default:false"`
 
-	// Owning channel, cascade-deleted with the channel.
 	ChannelID string           `json:"channelId" gorm:"index;not null"`
 	Channel   *channel.Channel `json:"channel,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 
@@ -32,11 +29,8 @@ type Video struct {
 	Tags     []VideoTag     `json:"tags,omitempty" gorm:"many2many:video_tags"`
 }
 
-// TableName keeps the table name aligned with the Prisma @@map("video").
 func (Video) TableName() string { return "video" }
 
-// VideoComment is a user's comment on a video. Mirrors the Prisma
-// "video_comment" model.
 type VideoComment struct {
 	gormx.TimestampedBase
 
@@ -49,11 +43,8 @@ type VideoComment struct {
 	Video   *Video `json:"video,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 }
 
-// TableName keeps the table name aligned with the Prisma @@map("video_comment").
 func (VideoComment) TableName() string { return "video_comment" }
 
-// VideoLike is a user's like on a video. A user can like a video at most once.
-// Mirrors the Prisma "video_like" model (created_at only, no updated_at).
 type VideoLike struct {
 	gormx.Base
 
@@ -64,11 +55,8 @@ type VideoLike struct {
 	Video   *Video `json:"video,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 }
 
-// TableName keeps the table name aligned with the Prisma @@map("video_like").
 func (VideoLike) TableName() string { return "video_like" }
 
-// VideoTag is a label that can be attached to many videos. Mirrors the Prisma
-// "video_tag" model.
 type VideoTag struct {
 	gormx.TimestampedBase
 
@@ -77,5 +65,4 @@ type VideoTag struct {
 	Videos []Video `json:"videos,omitempty" gorm:"many2many:video_tags"`
 }
 
-// TableName keeps the table name aligned with the Prisma @@map("video_tag").
 func (VideoTag) TableName() string { return "video_tag" }

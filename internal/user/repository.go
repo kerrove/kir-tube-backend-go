@@ -18,6 +18,21 @@ func (repo *UserRepository) Create(user *User) (*User, error) {
 
 	return user, nil
 }
+func (repo *UserRepository) Update(body *User) (*User, error) {
+
+	result := repo.Database.DB.Save(body)
+
+	user, err := repo.FindById(body.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return user, nil
+}
 func (repo *UserRepository) FindByEmail(email string) (*User, error) {
 	var user User
 	res := repo.Database.DB.First(&user, "email = ?", email)
@@ -31,6 +46,16 @@ func (repo *UserRepository) FindByEmail(email string) (*User, error) {
 func (repo *UserRepository) FindById(id string) (*User, error) {
 	var user User
 	res := repo.Database.DB.First(&user, "id = ?", id)
+
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	return &user, nil
+}
+func (repo *UserRepository) FindByVerifyToken(token string) (*User, error) {
+	var user User
+	res := repo.Database.DB.First(&user, "verification_token = ?", token)
 
 	if res.Error != nil {
 		return nil, res.Error

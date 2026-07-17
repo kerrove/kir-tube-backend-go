@@ -5,6 +5,7 @@ import (
 	"go/kir-tube/configs"
 	"go/kir-tube/internal/auth"
 	"go/kir-tube/internal/user"
+	"go/kir-tube/internal/video"
 	"go/kir-tube/pkg/db"
 	"go/kir-tube/pkg/middleware"
 
@@ -17,16 +18,24 @@ func App() (http.Handler, string) {
 
 	router := http.NewServeMux()
 
-	// // Modules
+	videoRepository := video.NewVideoRepository(db)
+
+	//  -- Modules -- //
 	userModule := user.NewUserModule(router, user.UserModuleDeps{
-		Config: conf,
-		Db:     db,
+		Config:          conf,
+		Db:              db,
+		VideoRepository: videoRepository,
 	})
 
 	auth.NewAuthModule(router, auth.AuthModuleDeps{
 		UserService: userModule.UserService,
 		Config:      conf,
 		Db:          db,
+	})
+
+	video.NewVideoModule(router, video.VideoModuleDeps{
+		Config:          conf,
+		VideoRepository: videoRepository,
 	})
 
 	stack := middleware.Chain(middleware.CORS, middleware.Logging)
