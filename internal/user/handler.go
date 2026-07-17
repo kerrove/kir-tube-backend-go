@@ -40,7 +40,7 @@ func (h *UserHandler) GetMyProfile() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, users, 200)
+		res.Json(w, users, http.StatusOK)
 	}
 }
 
@@ -55,7 +55,7 @@ func (h *UserHandler) UpdateMyProfile() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, users, 200)
+		res.Json(w, users, http.StatusOK)
 	}
 }
 
@@ -70,6 +70,6 @@ func (h *UserHandler) GetProfileLikes() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, users, 200)
+		res.Json(w, users, http.StatusOK)
 	}
 }

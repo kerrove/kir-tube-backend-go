@@ -45,7 +45,7 @@ func (h *VideoHandler) GetByPublicId() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, video, 200)
+		res.Json(w, video, http.StatusOK)
 	}
 }
 func (h *VideoHandler) GetTrending() http.HandlerFunc {
@@ -57,7 +57,7 @@ func (h *VideoHandler) GetTrending() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, videos, 200)
+		res.Json(w, videos, http.StatusOK)
 	}
 }
 func (h *VideoHandler) GetAll() http.HandlerFunc {
@@ -73,7 +73,7 @@ func (h *VideoHandler) GetAll() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, videos, 200)
+		res.Json(w, videos, http.StatusOK)
 	}
 }
 func (h *VideoHandler) UpdateViewsCount() http.HandlerFunc {
@@ -87,7 +87,7 @@ func (h *VideoHandler) UpdateViewsCount() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, video, 200)
+		res.Json(w, video, http.StatusOK)
 	}
 }
 func (h *VideoHandler) GetByChannel() http.HandlerFunc {
@@ -102,7 +102,7 @@ func (h *VideoHandler) GetByChannel() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, videos, 200)
+		res.Json(w, videos, http.StatusOK)
 	}
 }
 func (h *VideoHandler) GetExplore() http.HandlerFunc {
@@ -119,7 +119,7 @@ func (h *VideoHandler) GetExplore() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, videos, 200)
+		res.Json(w, videos, http.StatusOK)
 	}
 }
 
@@ -132,7 +132,7 @@ func (h *VideoHandler) GetGames() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, videos, 200)
+		res.Json(w, videos, http.StatusOK)
 	}
 }
 func (h *VideoHandler) ToggleLike() http.HandlerFunc {
@@ -151,6 +151,6 @@ func (h *VideoHandler) ToggleLike() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, map[string]bool{"liked": liked}, 200)
+		res.Json(w, map[string]bool{"liked": liked}, http.StatusOK)
 	}
 }

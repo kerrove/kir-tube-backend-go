@@ -51,7 +51,7 @@ func (handler *AuthHandler) Login() http.HandlerFunc {
 		}
 
 		handler.AuthService.addRefreshTokenToResponse(w, user.RefreshToken)
-		res.Json(w, user, 200)
+		res.Json(w, user, http.StatusOK)
 	}
 }
 func (handler *AuthHandler) Register() http.HandlerFunc {
@@ -69,7 +69,7 @@ func (handler *AuthHandler) Register() http.HandlerFunc {
 		}
 
 		handler.AuthService.addRefreshTokenToResponse(w, user.RefreshToken)
-		res.Json(w, user, 200)
+		res.Json(w, user, http.StatusOK)
 	}
 }
 
@@ -77,7 +77,7 @@ func (handler *AuthHandler) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		handler.AuthService.RemoveRefreshTokenFromResponse(w)
 
-		res.Json(w, true, 200)
+		res.Json(w, true, http.StatusOK)
 	}
 
 }
@@ -93,7 +93,7 @@ func (h *AuthHandler) VerifyEmail() http.HandlerFunc {
 
 		h.AuthService.verifyEmail(token)
 
-		res.Json(w, true, 200)
+		res.Json(w, true, http.StatusOK)
 	}
 
 }
@@ -115,6 +115,6 @@ func (handler *AuthHandler) GetNewTokens() http.HandlerFunc {
 
 		handler.AuthService.addRefreshTokenToResponse(w, resp.RefreshToken)
 
-		res.Json(w, resp, 200)
+		res.Json(w, resp, http.StatusOK)
 	}
 }

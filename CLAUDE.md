@@ -143,3 +143,8 @@ Source code dependencies must only point **inwards**, toward the core business l
 - [ ] Does this class have a single responsibility?
 - [ ] Are domain models free of framework-specific annotations/dependencies where possible?
 - [ ] Does the data flow respect the Clean Architecture dependency rule (no outer-layer leaks into the inner core)?
+
+## Test account:
+
+- Login: test@test.ru
+- Password: qwerty123

@@ -75,6 +75,41 @@ func (repo *VideoRepository) FindSubscribedVideos(userID string) ([]di.Subscribe
 	return out, nil
 }
 
+// FindAllByChannelID returns every video of a channel, newest first. It is the
+// di.IChannelVideoRepository implementation used by the channel domain.
+func (repo *VideoRepository) FindAllByChannelID(channelID string) ([]di.ChannelVideo, error) {
+	var videos []Video
+
+	res := repo.Database.DB.
+		Where("channel_id = ?", channelID).
+		Order("created_at desc").
+		Find(&videos)
+
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	out := make([]di.ChannelVideo, 0, len(videos))
+	for _, v := range videos {
+		out = append(out, di.ChannelVideo{
+			ID:            v.ID,
+			CreatedAt:     v.CreatedAt,
+			UpdatedAt:     v.UpdatedAt,
+			PublicId:      v.PublicId,
+			Title:         v.Title,
+			Description:   v.Description,
+			ThumbnailUrl:  v.ThumbnailUrl,
+			VideoFileName: v.VideoFileName,
+			MaxResolution: v.MaxResolution,
+			ViewsCount:    v.ViewsCount,
+			IsPublic:      v.IsPublic,
+			ChannelID:     v.ChannelID,
+		})
+	}
+
+	return out, nil
+}
+
 func (repo *VideoRepository) FindById(id string) (*Video, error) {
 	var video Video
 	res := repo.Database.DB.First(&video, "id = ?", id)

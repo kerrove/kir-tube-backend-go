@@ -1,6 +1,8 @@
 package user
 
-import "go/kir-tube/pkg/db"
+import (
+	"go/kir-tube/pkg/db"
+)
 
 type UserRepository struct {
 	Database *db.Db

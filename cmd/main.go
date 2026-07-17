@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/kir-tube/configs"
 	"go/kir-tube/internal/auth"
+	"go/kir-tube/internal/channel"
 	"go/kir-tube/internal/user"
 	"go/kir-tube/internal/video"
 	"go/kir-tube/pkg/db"
@@ -36,6 +37,12 @@ func App() (http.Handler, string) {
 	video.NewVideoModule(router, video.VideoModuleDeps{
 		Config:          conf,
 		VideoRepository: videoRepository,
+	})
+
+	channel.NewChannelModule(router, channel.ChannelModuleDeps{
+		VideoRepository: videoRepository,
+		Config:          conf,
+		Db:              db,
 	})
 
 	stack := middleware.Chain(middleware.CORS, middleware.Logging)
