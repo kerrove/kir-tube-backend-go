@@ -7,7 +7,9 @@ import (
 
 type UserProfile struct {
 	User
-	SubscribedVideos []di.SubscribedVideo `json:"subscribedVideos"`
+	SubscribedVideos []di.SubscribedVideo     `json:"subscribedVideos"`
+	Likes            []di.SubscribedVideo     `json:"likes"`
+	Subscriptions    []di.SubscriptionChannel `json:"subscriptions"`
 }
 
 type UserServiceDeps struct {
@@ -95,5 +97,20 @@ func (s *UserService) GetProfile(userID string) (*UserProfile, error) {
 		return nil, err
 	}
 
-	return &UserProfile{User: *user, SubscribedVideos: subscribedVideos}, nil
+	likedVideos, err := s.VideoRepository.FindLikedVideos(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	subscriptions, err := s.VideoRepository.FindSubscriptions(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UserProfile{
+		User:             *user,
+		SubscribedVideos: subscribedVideos,
+		Likes:            likedVideos,
+		Subscriptions:    subscriptions,
+	}, nil
 }

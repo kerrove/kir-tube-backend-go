@@ -3,8 +3,6 @@
 package seeder
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -155,7 +153,7 @@ func seedVideos(tx *gorm.DB, seeds []VideoSeed, channelIDs map[string]string) (i
 
 		publicID := seed.Slug
 		if publicID == "" {
-			generated, err := newPublicID()
+			generated, err := video.NewPublicID()
 			if err != nil {
 				return 0, err
 			}
@@ -210,12 +208,3 @@ func resolveTags(tx *gorm.DB, cache map[string]*video.VideoTag, names []string) 
 	return resolved, nil
 }
 
-// newPublicID mirrors the 12-character hex ids the existing seed data uses for
-// videos that ship without one.
-func newPublicID() (string, error) {
-	buf := make([]byte, 6)
-	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generate public id: %w", err)
-	}
-	return hex.EncodeToString(buf), nil
-}

@@ -4,6 +4,8 @@ import (
 	"go/kir-tube/internal/user"
 	"go/kir-tube/pkg/di"
 	"go/kir-tube/pkg/gormx"
+
+	"gorm.io/gorm"
 )
 
 // Channel is a user's public presence that hosts videos and gathers
@@ -24,11 +26,21 @@ type Channel struct {
 	User   *user.User `json:"user,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 
 	// Subscribers is the many-to-many opposite of User.subscriptions in Prisma.
-	Subscribers []user.User `json:"subscribers,omitempty" gorm:"many2many:channel_subscribers"`
+	Subscribers []user.User `json:"subscribers" gorm:"many2many:channel_subscribers"`
 }
 
 // TableName keeps the table name aligned with the Prisma @@map("channel").
 func (Channel) TableName() string { return "channel" }
+
+// AfterFind guarantees Subscribers serializes as an array ([]) instead of null
+// when the association was not preloaded, keeping the JSON shape stable wherever
+// a channel is read — the channel, playlist and studio read models all embed it.
+func (c *Channel) AfterFind(*gorm.DB) error {
+	if c.Subscribers == nil {
+		c.Subscribers = []user.User{}
+	}
+	return nil
+}
 
 // ChannelDetails is a channel read model: the channel itself with its owner and
 // subscribers, plus its videos. It is not a table — the videos come from the

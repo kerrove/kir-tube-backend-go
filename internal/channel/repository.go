@@ -21,9 +21,11 @@ func NewChannelRepository(database *db.Db, videoRepository di.IChannelVideoRepos
 func (repo *ChannelRepository) FindAll() *[]Channel {
 	var channels []Channel
 
-	repo.Database.Table("channel").
+	// Find (not Table+Scan) so the model's AfterFind hook runs and Subscribers
+	// serializes as [] rather than null.
+	repo.Database.DB.
 		Order("created_at desc").
-		Scan(&channels)
+		Find(&channels)
 
 	return &channels
 }
@@ -47,7 +49,10 @@ func (repo *ChannelRepository) FindBySlug(slug string) (*ChannelDetails, error) 
 	}
 
 	owner := channel
-	owner.Subscribers = nil
+	// The full subscriber list already lives on details.Channel; the copy
+	// attached to every video keeps an empty array (not null) to avoid
+	// repeating it while keeping the JSON shape stable.
+	owner.Subscribers = []user.User{}
 
 	details := &ChannelDetails{
 		Channel: channel,

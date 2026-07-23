@@ -1,11 +1,8 @@
 package video
 
 import (
-	"errors"
 	"net/http"
 	"strings"
-
-	"gorm.io/gorm"
 
 	"go/kir-tube/configs"
 	"go/kir-tube/pkg/di"
@@ -14,14 +11,6 @@ import (
 	request "go/kir-tube/pkg/req"
 	"go/kir-tube/pkg/res"
 )
-
-func writeServiceError(w http.ResponseWriter, err error) {
-	if errors.Is(err, ErrVideoNotFound) || errors.Is(err, gorm.ErrRecordNotFound) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-}
 
 type VideoHandlerDeps struct {
 	VideoService *VideoService
@@ -41,7 +30,7 @@ func NewVideoHandler(router *http.ServeMux, deps VideoHandlerDeps) {
 
 	logs.RouteLog(router, "POST /users/profile/likes", middleware.IsAuthed(handler.ToggleLike(), deps.Config, deps.UserProvider))
 
-	logs.RouteLog(router, "GET /videos/publicId/{publicId}", handler.GetByPublicId())
+	logs.RouteLog(router, "GET /videos/by-publicId/{publicId}", handler.GetByPublicId())
 	logs.RouteLog(router, "GET /videos/by-channel/{channelId}", handler.GetByChannel())
 	logs.RouteLog(router, "GET /videos", handler.GetAll())
 	logs.RouteLog(router, "GET /videos/games", handler.GetGames())
@@ -56,7 +45,7 @@ func (h *VideoHandler) GetByPublicId() http.HandlerFunc {
 		video, err := h.VideoService.GetVideoByPublicId(id)
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 
@@ -68,7 +57,7 @@ func (h *VideoHandler) GetTrending() http.HandlerFunc {
 		videos, err := h.VideoService.GetTrendingVideos()
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 
@@ -84,7 +73,7 @@ func (h *VideoHandler) GetAll() http.HandlerFunc {
 		videos, err := h.VideoService.GetAll(searchTerm, page, limit)
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 
@@ -98,7 +87,7 @@ func (h *VideoHandler) UpdateViewsCount() http.HandlerFunc {
 		video, err := h.VideoService.UpdateViewsCount(publicId)
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 
@@ -113,7 +102,7 @@ func (h *VideoHandler) GetByChannel() http.HandlerFunc {
 		videos, err := h.VideoService.ByChannel(channelId, page, limit)
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 
@@ -134,7 +123,7 @@ func (h *VideoHandler) GetExplore() http.HandlerFunc {
 		videos, err := h.VideoService.GetRecommendations(id, page, limit, excludeIds)
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 
@@ -147,7 +136,7 @@ func (h *VideoHandler) GetGames() http.HandlerFunc {
 		videos, err := h.VideoService.GetTrendingVideos()
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 
@@ -166,7 +155,7 @@ func (h *VideoHandler) ToggleLike() http.HandlerFunc {
 		liked, err := h.VideoService.ToggleLike(id, body.VideoId)
 
 		if err != nil {
-			writeServiceError(w, err)
+			res.WriteServiceError(w, err, ErrVideoNotFound)
 			return
 		}
 

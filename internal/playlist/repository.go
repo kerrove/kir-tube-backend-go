@@ -102,3 +102,57 @@ func (rep *PlaylistRepository) ToggleVideo(playlistId, videoId, userId string) (
 
 	return &ToggleVideoResponse{Message: "Видео добавлено в плейлист"}, nil
 }
+
+// Create makes a new playlist for the user. When body.VideoPublicId is set the
+// referenced video is attached to the playlist; a missing video is reported as
+// ErrVideoNotExist (mapped to 404), mirroring the Prisma createPlaylist method.
+// The returned playlist has its videos loaded (Prisma's include: { videos }).
+func (rep *PlaylistRepository) Create(userId string, body *PlaylistRequest) (*Playlist, error) {
+	var videoId string
+	if body.VideoPublicId != "" {
+		id, found, err := rep.VideoRepository.FindIdByPublicId(body.VideoPublicId)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, ErrVideoNotFound
+		}
+		videoId = id
+	}
+
+	playlist := &Playlist{
+		UserID: userId,
+		Title:  body.Title,
+	}
+
+	err := rep.Database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(playlist).Error; err != nil {
+			return err
+		}
+
+		if videoId != "" {
+			// Insert straight into the join table (like ToggleVideo) so GORM
+			// never touches the video row itself.
+			if err := tx.Exec(
+				"INSERT INTO playlist_videos (playlist_id, video_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+				playlist.ID, videoId,
+			).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Reload with the videos attached, matching the Prisma include.
+	if err := rep.Database.DB.
+		Preload("Videos").
+		First(playlist, "id = ?", playlist.ID).Error; err != nil {
+		return nil, err
+	}
+
+	return playlist, nil
+}

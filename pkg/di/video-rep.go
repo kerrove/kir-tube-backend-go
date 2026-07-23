@@ -6,13 +6,19 @@ package di
 // imports user, so any user -> video edge would form an import cycle.
 type IVideoRepository interface {
 	FindSubscribedVideos(userID string) ([]SubscribedVideo, error)
+	FindLikedVideos(userID string) ([]SubscribedVideo, error)
+	FindSubscriptions(userID string) ([]SubscriptionChannel, error)
 }
 
 // IPlaylistVideoRepository is the port the playlist domain needs from the video
-// domain: only checking that a video exists before adding it to a playlist. It
-// is deliberately tiny (ISP) so playlist depends on nothing more than that.
+// domain: checking that a video exists before adding it to a playlist, and
+// resolving a public id to the internal id used by the join table. It is
+// deliberately tiny (ISP) so playlist depends on nothing more than that.
 type IPlaylistVideoRepository interface {
 	ExistsById(id string) (bool, error)
+	// FindIdByPublicId returns the internal id of the video with the given
+	// public id. found is false (with a nil error) when no such video exists.
+	FindIdByPublicId(publicId string) (id string, found bool, err error)
 }
 
 // SubscribedVideo is the transport DTO returned by IVideoRepository. It mirrors
@@ -51,4 +57,16 @@ type SubscribedChannelUser struct {
 type SubscribedLike struct {
 	ID     string `json:"id"`
 	UserID string `json:"userId"`
+}
+
+// SubscriptionChannel is a channel the user is subscribed to, with its owning
+// user. It is the transport DTO for the profile's `subscriptions` list.
+type SubscriptionChannel struct {
+	ID          string  `json:"id"`
+	Slug        string  `json:"slug"`
+	Description *string `json:"description"`
+	AvatarUrl   *string `json:"avatarUrl"`
+	IsVerified  bool    `json:"isVerified"`
+
+	User *SubscribedChannelUser `json:"user,omitempty"`
 }

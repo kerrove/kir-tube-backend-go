@@ -2,7 +2,7 @@ package playlist
 
 type PlaylistRequest struct {
 	Title         string `json:"title" validate:"required"`
-	VideoPublicId string `json:"videoPublicId" validate:"required"`
+	VideoPublicId string `json:"videoPublicId" validate:"omitempty"`
 }
 type ToggleVideoRequest struct {
 	VideoId string `json:"videoId" validate:"required"`

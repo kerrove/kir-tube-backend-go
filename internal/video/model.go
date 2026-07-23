@@ -4,6 +4,8 @@ import (
 	"go/kir-tube/internal/channel"
 	"go/kir-tube/internal/user"
 	"go/kir-tube/pkg/gormx"
+
+	"gorm.io/gorm"
 )
 
 type Video struct {
@@ -24,12 +26,28 @@ type Video struct {
 	ChannelID string           `json:"channelId" gorm:"index;not null"`
 	Channel   *channel.Channel `json:"channel,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 
-	Comments []VideoComment `json:"comments,omitempty"`
-	Likes    []VideoLike    `json:"likes,omitempty"`
-	Tags     []VideoTag     `json:"tags,omitempty" gorm:"many2many:video_tags"`
+	Comments []VideoComment `json:"comments"`
+	Likes    []VideoLike    `json:"likes"`
+	Tags     []VideoTag     `json:"tags" gorm:"many2many:video_tags"`
 }
 
 func (Video) TableName() string { return "video" }
+
+// AfterFind guarantees the collection fields serialize as arrays ([]) instead of
+// null when the associations were not preloaded, keeping the JSON shape stable
+// wherever a video is read.
+func (v *Video) AfterFind(*gorm.DB) error {
+	if v.Comments == nil {
+		v.Comments = []VideoComment{}
+	}
+	if v.Likes == nil {
+		v.Likes = []VideoLike{}
+	}
+	if v.Tags == nil {
+		v.Tags = []VideoTag{}
+	}
+	return nil
+}
 
 type VideoComment struct {
 	gormx.TimestampedBase

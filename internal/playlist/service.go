@@ -48,6 +48,7 @@ func (s *PlaylistService) GetPlaylistById(playlistId string) (*Playlist, error) 
 func (s *PlaylistService) ToggleVideo(userId, playlistId, videoId string) (*ToggleVideoResponse, error) {
 	return s.PlaylistRepository.ToggleVideo(playlistId, videoId, userId)
 }
-func (s *PlaylistService) Create(userId string, body *PlaylistRequest) {
+func (s *PlaylistService) Create(userId string, body *PlaylistRequest) (*Playlist, error) {
+	return s.PlaylistRepository.Create(userId, body)
 
 }

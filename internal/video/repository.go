@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"go/kir-tube/internal/channel"
 	"go/kir-tube/pkg/db"
 	"go/kir-tube/pkg/di"
 )
@@ -39,6 +40,72 @@ func (repo *VideoRepository) FindSubscribedVideos(userID string) ([]di.Subscribe
 		return nil, result.Error
 	}
 
+	return toSubscribedVideos(videos), nil
+}
+
+// FindLikedVideos returns every video the user has liked, newest first, in the
+// same transport shape as FindSubscribedVideos (channel with owner, plus the
+// video's likes) so the profile can render liked videos with the same card.
+func (repo *VideoRepository) FindLikedVideos(userID string) ([]di.SubscribedVideo, error) {
+	var videos []Video
+
+	result := repo.Database.DB.
+		Joins("JOIN video_like ON video_like.video_id = video.id").
+		Where("video_like.user_id = ?", userID).
+		Preload("Channel.User").
+		Preload("Likes").
+		Order("video.created_at desc").
+		Find(&videos)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return toSubscribedVideos(videos), nil
+}
+
+// FindSubscriptions returns every channel the user is subscribed to, newest
+// first, with the channel's owning user. It backs the profile's `subscriptions`
+// list.
+func (repo *VideoRepository) FindSubscriptions(userID string) ([]di.SubscriptionChannel, error) {
+	var channels []channel.Channel
+
+	result := repo.Database.DB.
+		Joins("JOIN channel_subscribers ON channel_subscribers.channel_id = channel.id").
+		Where("channel_subscribers.user_id = ?", userID).
+		Preload("User").
+		Order("channel.created_at desc").
+		Find(&channels)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	out := make([]di.SubscriptionChannel, 0, len(channels))
+	for _, c := range channels {
+		sc := di.SubscriptionChannel{
+			ID:          c.ID,
+			Slug:        c.Slug,
+			Description: c.Description,
+			AvatarUrl:   c.AvatarUrl,
+			IsVerified:  c.IsVerified,
+		}
+		if c.User != nil {
+			sc.User = &di.SubscribedChannelUser{
+				ID:    c.User.ID,
+				Name:  c.User.Name,
+				Email: c.User.Email,
+			}
+		}
+		out = append(out, sc)
+	}
+
+	return out, nil
+}
+
+// toSubscribedVideos projects loaded videos into the di.SubscribedVideo DTO,
+// keeping only the public fields the profile read models expose.
+func toSubscribedVideos(videos []Video) []di.SubscribedVideo {
 	out := make([]di.SubscribedVideo, 0, len(videos))
 	for _, v := range videos {
 		sv := di.SubscribedVideo{
@@ -77,7 +144,7 @@ func (repo *VideoRepository) FindSubscribedVideos(userID string) ([]di.Subscribe
 		out = append(out, sv)
 	}
 
-	return out, nil
+	return out
 }
 
 func (repo *VideoRepository) FindAllByChannelID(channelID string) ([]di.ChannelVideo, error) {
@@ -135,6 +202,25 @@ func (repo *VideoRepository) FindByPublicId(publicId string) (*Video, error) {
 	}
 
 	return &video, nil
+}
+
+// FindIdByPublicId resolves a public id to the internal video id. It returns
+// found=false with a nil error when no video matches, so callers can tell a
+// missing video apart from a real failure.
+func (repo *VideoRepository) FindIdByPublicId(publicId string) (string, bool, error) {
+	var video Video
+	err := repo.Database.DB.
+		Select("id").
+		First(&video, "public_id = ?", publicId).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+
+	return video.ID, true, nil
 }
 
 func (repo *VideoRepository) FindRecentPublicVideos(since time.Time) ([]Video, error) {
@@ -279,6 +365,7 @@ func (repo *VideoRepository) FindByPublicIdFull(publicId string) (*Video, error)
 
 	res := repo.Database.DB.
 		Preload("Channel.User").
+		Preload("Channel.Subscribers").
 		Preload("Tags").
 		Preload("Likes").
 		Preload("Comments", func(db *gorm.DB) *gorm.DB {
@@ -613,7 +700,7 @@ func (repo *VideoRepository) Create(channelID string, input CreateVideoInput) (*
 		return nil, err
 	}
 
-	publicID, err := newPublicID()
+	publicID, err := NewPublicID()
 	if err != nil {
 		return nil, err
 	}

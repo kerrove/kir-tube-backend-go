@@ -20,8 +20,9 @@ type AuthConfig struct {
 	Secret string
 }
 type NetworkConfig struct {
-	Port   string
-	Domain string
+	Port      string
+	Domain    string
+	ClientUrl string
 }
 
 func LoadConfig() *Config {
@@ -37,8 +38,9 @@ func LoadConfig() *Config {
 			Secret: os.Getenv("JWT_SECRET"),
 		},
 		Network: NetworkConfig{
-			Port:   os.Getenv("PORT"),
-			Domain: os.Getenv("DOMAIN"),
+			Port:      os.Getenv("PORT"),
+			Domain:    os.Getenv("DOMAIN"),
+			ClientUrl: os.Getenv("CLIENT_URL"),
 		},
 	}
 }

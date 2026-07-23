@@ -1,14 +1,14 @@
 package video
 
 type ToggleLikeReq struct {
-	VideoId string `json:"videoId"`
+	VideoId string `json:"videoId" validate:"required"`
 }
 
 // CreateVideoInput is the data the studio (channel owner) supplies to publish a
 // new video. Tags are matched-or-created by name; the public id, visibility and
 // channel ownership are set by the repository, not the caller.
 type CreateVideoInput struct {
-	Title         string   `json:"title"`
+	Title         string   `json:"title" validate:"required"`
 	Description   string   `json:"description"`
 	ThumbnailUrl  string   `json:"thumbnailUrl"`
 	VideoFileName string   `json:"videoFileName"`

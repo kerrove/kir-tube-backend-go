@@ -87,12 +87,12 @@ func (h *PlaylistHandler) Create() http.HandlerFunc {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		}
 
-		h.PlaylistService.Create(userId, body)
-		// if err != nil {
-		// 	http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		// }
+		playlist, err := h.PlaylistService.Create(userId, body)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		}
 
-		res.Json(w, true, 200)
+		res.Json(w, playlist, 200)
 
 	}
 }

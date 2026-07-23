@@ -14,10 +14,10 @@ const publicIDAlphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 // migrated data keeps the same public-id shape.
 const publicIDLength = 10
 
-// newPublicID returns a short, URL-safe identifier used in video watch URLs. It
+// NewPublicID returns a short, URL-safe identifier used in video watch URLs. It
 // is distinct from the primary key: the pk stays internal, the public id is the
 // value exposed to clients.
-func newPublicID() (string, error) {
+func NewPublicID() (string, error) {
 	buf := make([]byte, publicIDLength)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err

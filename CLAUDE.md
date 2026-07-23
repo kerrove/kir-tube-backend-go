@@ -148,3 +148,5 @@ Source code dependencies must only point **inwards**, toward the core business l
 
 - Login: test@test.ru
 - Password: qwerty123
+
+Давай ответы на русском языке

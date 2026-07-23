@@ -16,10 +16,13 @@ import (
 // VideoRepository satisfies all three.
 type IVideoRepository interface {
 	FindSubscribedVideos(userID string) ([]di.SubscribedVideo, error)
+	FindLikedVideos(userID string) ([]di.SubscribedVideo, error)
+	FindSubscriptions(userID string) ([]di.SubscriptionChannel, error)
 	FindAllByChannelID(channelID string) ([]di.ChannelVideo, error)
 
 	ExistsById(id string) (bool, error)
 	FindByPublicId(publicId string) (*Video, error)
+	FindIdByPublicId(publicId string) (id string, found bool, err error)
 	FindByPublicIdFull(publicId string) (*Video, error)
 	IncrementViewsCount(publicId string) (*Video, error)
 

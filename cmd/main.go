@@ -5,6 +5,8 @@ import (
 	"go/kir-tube/configs"
 	"go/kir-tube/internal/auth"
 	"go/kir-tube/internal/channel"
+	"go/kir-tube/internal/comment"
+	"go/kir-tube/internal/media"
 	"go/kir-tube/internal/playlist"
 	"go/kir-tube/internal/studio"
 	"go/kir-tube/internal/user"
@@ -15,6 +17,12 @@ import (
 	"net/http"
 )
 
+// @title Kir-tube API
+// @version 2.0
+
+// @host localhost:8000
+// @BasePath /api
+
 func App() (http.Handler, string) {
 	conf := configs.LoadConfig()
 	db := db.NewDb(conf)
@@ -22,10 +30,6 @@ func App() (http.Handler, string) {
 	router := http.NewServeMux()
 
 	videoRepository := video.NewVideoRepository(db)
-	// userProvider loads the full authenticated user (with their channel) for the
-	// auth middleware (di.IUserProvider). It lives in the channel package because
-	// it reads both the user and channel tables. Shared by every module whose
-	// routes are behind IsAuthed / MaybeAuthed.
 	userProvider := channel.NewContextUserRepository(db)
 
 	//  -- Modules -- //
@@ -67,10 +71,27 @@ func App() (http.Handler, string) {
 		Db:              db,
 		UserProvider:    userProvider,
 	})
+	comment.NewCommentModule(router, comment.CommentModuleDeps{
+		VideoRepository: videoRepository,
+		Config:          conf,
+		Db:              db,
+		UserProvider:    userProvider,
+	})
 
-	stack := middleware.Chain(middleware.CORS, middleware.Logging)
+	media.NewMediaModule(router, media.MediaModuleDeps{
+		Config:       conf,
+		UserProvider: userProvider,
+	})
 
-	return stack(router), conf.Network.Port
+	// Mount every module under a global /api prefix. StripPrefix removes it
+	// before the request reaches the module routes, so the handlers keep
+	// registering paths like "/comments/..." unchanged.
+	apiRouter := http.NewServeMux()
+	apiRouter.Handle("/api/", http.StripPrefix("/api", router))
+
+	stack := middleware.Chain(middleware.CORS(conf.Network.ClientUrl), middleware.Logging)
+
+	return stack(apiRouter), conf.Network.Port
 }
 
 func main() {
