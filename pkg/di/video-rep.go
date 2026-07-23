@@ -8,6 +8,13 @@ type IVideoRepository interface {
 	FindSubscribedVideos(userID string) ([]SubscribedVideo, error)
 }
 
+// IPlaylistVideoRepository is the port the playlist domain needs from the video
+// domain: only checking that a video exists before adding it to a playlist. It
+// is deliberately tiny (ISP) so playlist depends on nothing more than that.
+type IPlaylistVideoRepository interface {
+	ExistsById(id string) (bool, error)
+}
+
 // SubscribedVideo is the transport DTO returned by IVideoRepository. It mirrors
 // the Prisma include of the channel (with its owning user) and the likes, but
 // belongs to di so neither user nor di has to import the video package.

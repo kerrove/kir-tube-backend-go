@@ -1,17 +1,32 @@
 package video
 
 import (
+	"errors"
+	"net/http"
+	"strings"
+
+	"gorm.io/gorm"
+
 	"go/kir-tube/configs"
+	"go/kir-tube/pkg/di"
 	"go/kir-tube/pkg/logs"
 	"go/kir-tube/pkg/middleware"
 	request "go/kir-tube/pkg/req"
 	"go/kir-tube/pkg/res"
-	"net/http"
 )
+
+func writeServiceError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrVideoNotFound) || errors.Is(err, gorm.ErrRecordNotFound) {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
 
 type VideoHandlerDeps struct {
 	VideoService *VideoService
 	Config       *configs.Config
+	UserProvider di.IUserProvider
 }
 type VideoHandler struct {
 	VideoService *VideoService
@@ -24,14 +39,14 @@ func NewVideoHandler(router *http.ServeMux, deps VideoHandlerDeps) {
 		Config:       deps.Config,
 	}
 
-	logs.RouteLog(router, "GET /users/profile/likes", middleware.IsAuthed(handler.ToggleLike(), deps.Config))
+	logs.RouteLog(router, "POST /users/profile/likes", middleware.IsAuthed(handler.ToggleLike(), deps.Config, deps.UserProvider))
 
 	logs.RouteLog(router, "GET /videos/publicId/{publicId}", handler.GetByPublicId())
 	logs.RouteLog(router, "GET /videos/by-channel/{channelId}", handler.GetByChannel())
 	logs.RouteLog(router, "GET /videos", handler.GetAll())
 	logs.RouteLog(router, "GET /videos/games", handler.GetGames())
 	logs.RouteLog(router, "GET /videos/trending", handler.GetTrending())
-	logs.RouteLog(router, "GET /videos/explore", handler.GetExplore())
+	logs.RouteLog(router, "GET /videos/explore", middleware.MaybeAuthed(handler.GetExplore(), deps.Config, deps.UserProvider))
 	logs.RouteLog(router, "PUT /videos/update-views-count/{publicId}", handler.UpdateViewsCount())
 }
 
@@ -41,7 +56,7 @@ func (h *VideoHandler) GetByPublicId() http.HandlerFunc {
 		video, err := h.VideoService.GetVideoByPublicId(id)
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			writeServiceError(w, err)
 			return
 		}
 
@@ -53,7 +68,7 @@ func (h *VideoHandler) GetTrending() http.HandlerFunc {
 		videos, err := h.VideoService.GetTrendingVideos()
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			writeServiceError(w, err)
 			return
 		}
 
@@ -64,12 +79,12 @@ func (h *VideoHandler) GetAll() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		searchTerm := r.URL.Query().Get("searchTerm")
 
-		page, limit := paginationParams(r)
+		page, limit := PaginationParams(r)
 
 		videos, err := h.VideoService.GetAll(searchTerm, page, limit)
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			writeServiceError(w, err)
 			return
 		}
 
@@ -83,7 +98,7 @@ func (h *VideoHandler) UpdateViewsCount() http.HandlerFunc {
 		video, err := h.VideoService.UpdateViewsCount(publicId)
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			writeServiceError(w, err)
 			return
 		}
 
@@ -93,12 +108,12 @@ func (h *VideoHandler) UpdateViewsCount() http.HandlerFunc {
 func (h *VideoHandler) GetByChannel() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		channelId := r.PathValue("channelId")
-		page, limit := paginationParams(r)
+		page, limit := PaginationParams(r)
 
 		videos, err := h.VideoService.ByChannel(channelId, page, limit)
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			writeServiceError(w, err)
 			return
 		}
 
@@ -107,15 +122,19 @@ func (h *VideoHandler) GetByChannel() http.HandlerFunc {
 }
 func (h *VideoHandler) GetExplore() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := request.GetProfileId(w, r)
-		excludeIds := []string{r.URL.Query().Get("excludeIds")}
+		id := request.GetProfileIdOptional(r)
 
-		page, limit := paginationParams(r)
+		var excludeIds []string
+		if raw := r.URL.Query().Get("excludeIds"); raw != "" {
+			excludeIds = strings.Split(raw, ",")
+		}
+
+		page, limit := PaginationParams(r)
 
 		videos, err := h.VideoService.GetRecommendations(id, page, limit, excludeIds)
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			writeServiceError(w, err)
 			return
 		}
 
@@ -128,7 +147,7 @@ func (h *VideoHandler) GetGames() http.HandlerFunc {
 		videos, err := h.VideoService.GetTrendingVideos()
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			writeServiceError(w, err)
 			return
 		}
 
@@ -147,7 +166,7 @@ func (h *VideoHandler) ToggleLike() http.HandlerFunc {
 		liked, err := h.VideoService.ToggleLike(id, body.VideoId)
 
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			writeServiceError(w, err)
 			return
 		}
 

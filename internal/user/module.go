@@ -11,6 +11,7 @@ type UserModuleDeps struct {
 	Config          *configs.Config
 	Db              *db.Db
 	VideoRepository di.IVideoRepository
+	UserProvider    di.IUserProvider
 }
 type UserModule struct {
 	UserService *UserService
@@ -24,8 +25,9 @@ func NewUserModule(router *http.ServeMux, deps UserModuleDeps) *UserModule {
 			VideoRepository: deps.VideoRepository,
 		})
 	NewUserHandler(router, UserHandlerDeps{
-		UserService: userService,
-		Config:      deps.Config,
+		UserService:  userService,
+		Config:       deps.Config,
+		UserProvider: deps.UserProvider,
 	})
 
 	return &UserModule{UserService: userService}

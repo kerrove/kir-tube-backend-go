@@ -1,10 +1,32 @@
 package video
 
 import (
+	"crypto/rand"
 	"math"
 	"net/http"
 	"strconv"
 )
+
+// publicIDAlphabet is the character set for generated public ids (base36).
+const publicIDAlphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+// publicIDLength mirrors the length of the NestJS backend's nanoid(10) ids so
+// migrated data keeps the same public-id shape.
+const publicIDLength = 10
+
+// newPublicID returns a short, URL-safe identifier used in video watch URLs. It
+// is distinct from the primary key: the pk stays internal, the public id is the
+// value exposed to clients.
+func newPublicID() (string, error) {
+	buf := make([]byte, publicIDLength)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	for i, b := range buf {
+		buf[i] = publicIDAlphabet[int(b)%len(publicIDAlphabet)]
+	}
+	return string(buf), nil
+}
 
 func normalizePage(page, limit, defaultLimit int) (int, int) {
 	if page < 1 {
@@ -43,7 +65,7 @@ func videoIDs(videos []Video) []string {
 	}
 	return ids
 }
-func paginationParams(r *http.Request) (page, limit int) {
+func PaginationParams(r *http.Request) (page, limit int) {
 	return queryInt(r, "page", 1), queryInt(r, "limit", 10)
 }
 

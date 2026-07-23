@@ -207,6 +207,11 @@ func (s *VideoService) getGeneralRecommendations(page, limit int, excludeIds []s
 	}, nil
 }
 
+// maxTitleWords caps how many distinct title words feed the recommendation
+// query. Each word becomes a separate `title ILIKE '%word%'` OR term, so an
+// unbounded set would build a huge, index-defeating condition.
+const maxTitleWords = 12
+
 func (s *VideoService) getTitleWordsFromVideos(videoIDs []string) ([]string, error) {
 	titles, err := s.VideoRepository.FindTitlesForVideos(videoIDs)
 	if err != nil {
@@ -222,6 +227,9 @@ func (s *VideoService) getTitleWordsFromVideos(videoIDs []string) ([]string, err
 			}
 			seen[word] = struct{}{}
 			words = append(words, word)
+			if len(words) >= maxTitleWords {
+				return words, nil
+			}
 		}
 	}
 	return words, nil

@@ -11,6 +11,7 @@ type ChannelModuleDeps struct {
 	Config          *configs.Config
 	Db              *db.Db
 	VideoRepository di.IChannelVideoRepository
+	UserProvider    di.IUserProvider
 }
 type ChannelModule struct {
 	ChannelService *ChannelService
@@ -27,6 +28,7 @@ func NewChannelModule(router *http.ServeMux, deps ChannelModuleDeps) {
 	NewChannelHandler(router, ChannelHandlerDeps{
 		ChannelService: channelService,
 		Config:         deps.Config,
+		UserProvider:   deps.UserProvider,
 	})
 
 }

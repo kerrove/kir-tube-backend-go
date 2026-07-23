@@ -2,6 +2,7 @@ package channel
 
 import (
 	"go/kir-tube/configs"
+	"go/kir-tube/pkg/di"
 	"go/kir-tube/pkg/logs"
 	"go/kir-tube/pkg/middleware"
 	request "go/kir-tube/pkg/req"
@@ -12,6 +13,7 @@ import (
 type ChannelHandlerDeps struct {
 	*configs.Config
 	*ChannelService
+	UserProvider di.IUserProvider
 }
 type ChannelHandler struct {
 	*ChannelService
@@ -26,7 +28,7 @@ func NewChannelHandler(router *http.ServeMux, deps ChannelHandlerDeps) {
 
 	logs.RouteLog(router, "GET /channels", handler.GetAll())
 	logs.RouteLog(router, "GET /channels/by-slug/{slug}", handler.GetBySlug())
-	logs.RouteLog(router, "PATCH /channels/toggle-subscribe/{slug}", middleware.IsAuthed(handler.ToggleSubscribe(), deps.Config))
+	logs.RouteLog(router, "PATCH /channels/toggle-subscribe/{slug}", middleware.IsAuthed(handler.ToggleSubscribe(), deps.Config, deps.UserProvider))
 }
 
 func (h *ChannelHandler) GetAll() http.HandlerFunc {

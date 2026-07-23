@@ -9,5 +9,18 @@ services:
       - ./.env
     volumes:
       - postgres_data:/data/postgres
+  minio:
+    container_name: minio
+    image: minio/minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+    env_file:
+      - ./.env
+    command: server --console-address ":9001" /data
+    restart: always
 volumes:
   postgres_data:
+  minio-data:

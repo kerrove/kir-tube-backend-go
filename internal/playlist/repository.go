@@ -1,0 +1,104 @@
+package playlist
+
+import (
+	"errors"
+	"slices"
+
+	"gorm.io/gorm"
+
+	"go/kir-tube/internal/video"
+	"go/kir-tube/pkg/db"
+	"go/kir-tube/pkg/di"
+)
+
+type PlaylistRepository struct {
+	Database        *db.Db
+	VideoRepository di.IPlaylistVideoRepository
+}
+
+func NewPlaylistRepository(database *db.Db, videoRepository di.IPlaylistVideoRepository) *PlaylistRepository {
+	return &PlaylistRepository{Database: database, VideoRepository: videoRepository}
+}
+
+// FindById loads a playlist together with its videos (newest first), each video
+// carrying its channel and the channel's owner.
+func (rep *PlaylistRepository) FindById(id string) (*Playlist, error) {
+	var playlist Playlist
+	err := rep.Database.DB.
+		Preload("Videos", func(db *gorm.DB) *gorm.DB {
+			return db.Order("video.created_at desc")
+		}).
+		Preload("Videos.Channel.User").
+		First(&playlist, "id = ?", id).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &playlist, nil
+}
+func (rep *PlaylistRepository) FindByUserId(userId string) (*[]Playlist, error) {
+	var playlists []Playlist
+	err := rep.Database.DB.
+		Preload("Videos").
+		Where("user_id = ?", userId).
+		Order("created_at desc").
+		Find(&playlists).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &playlists, nil
+}
+func (rep *PlaylistRepository) ToggleVideo(playlistId, videoId, userId string) (*ToggleVideoResponse, error) {
+	var playlist Playlist
+	err := rep.Database.DB.
+		Preload("Videos").
+		First(&playlist, "user_id = ? AND id = ?", userId, playlistId).
+		Error
+
+	if err != nil {
+		return nil, errors.New(ErrPlaylistNotExist)
+	}
+
+	exists, err := rep.VideoRepository.ExistsById(videoId)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.New(ErrVideoNotExist)
+	}
+
+	// Videos was preloaded, so the current membership is known without another
+	// query.
+	isVideoInPlaylist := slices.ContainsFunc(playlist.Videos, func(video video.Video) bool {
+		return video.ID == videoId
+	})
+
+	if isVideoInPlaylist {
+		err := rep.Database.DB.
+			Exec("DELETE FROM playlist_videos WHERE playlist_id = ? AND video_id = ?", playlistId, videoId).
+			Error
+
+		if err != nil {
+			return nil, err
+		}
+
+		return &ToggleVideoResponse{Message: "Видео удалено из плейлиста"}, nil
+	}
+
+	// ON CONFLICT DO NOTHING keeps concurrent toggles from failing on the
+	// composite primary key.
+	err = rep.Database.DB.
+		Exec("INSERT INTO playlist_videos (playlist_id, video_id) VALUES (?, ?) ON CONFLICT DO NOTHING", playlistId, videoId).
+		Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &ToggleVideoResponse{Message: "Видео добавлено в плейлист"}, nil
+}

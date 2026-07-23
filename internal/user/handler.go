@@ -2,6 +2,7 @@ package user
 
 import (
 	"go/kir-tube/configs"
+	"go/kir-tube/pkg/di"
 	"go/kir-tube/pkg/logs"
 	"go/kir-tube/pkg/middleware"
 	request "go/kir-tube/pkg/req"
@@ -10,8 +11,9 @@ import (
 )
 
 type UserHandlerDeps struct {
-	UserService *UserService
-	Config      *configs.Config
+	UserService  *UserService
+	Config       *configs.Config
+	UserProvider di.IUserProvider
 }
 type UserHandler struct {
 	UserService *UserService
@@ -24,9 +26,9 @@ func NewUserHandler(router *http.ServeMux, deps UserHandlerDeps) {
 		Config:      deps.Config,
 	}
 
-	logs.RouteLog(router, "GET /users/profile", middleware.IsAuthed(handler.GetMyProfile(), deps.Config))
-	logs.RouteLog(router, "PUT /users/profile", middleware.IsAuthed(handler.GetMyProfile(), deps.Config))
-	logs.RouteLog(router, "PUT /users/profile/likes", middleware.IsAuthed(handler.GetMyProfile(), deps.Config))
+	logs.RouteLog(router, "GET /users/profile", middleware.IsAuthed(handler.GetMyProfile(), deps.Config, deps.UserProvider))
+	logs.RouteLog(router, "PUT /users/profile", middleware.IsAuthed(handler.GetMyProfile(), deps.Config, deps.UserProvider))
+	logs.RouteLog(router, "PUT /users/profile/likes", middleware.IsAuthed(handler.GetMyProfile(), deps.Config, deps.UserProvider))
 }
 
 func (h *UserHandler) GetMyProfile() http.HandlerFunc {
