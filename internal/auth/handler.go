@@ -11,7 +11,6 @@ import (
 const (
 	RefreshTokenName      = "refreshToken"
 	ExpireDayRefreshToken = 1
-	Domain                = "localhost"
 )
 
 type AuthHandlerDeps struct {

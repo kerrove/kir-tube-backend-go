@@ -151,7 +151,7 @@ func (s *AuthService) addRefreshTokenToResponse(w http.ResponseWriter, refreshTo
 		Path:     "/",
 		Expires:  time.Now().AddDate(0, 0, ExpireDayRefreshToken),
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   s.Config.Auth.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -164,7 +164,7 @@ func (s *AuthService) RemoveRefreshTokenFromResponse(w http.ResponseWriter) {
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   s.Config.Auth.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 }

@@ -19,7 +19,7 @@ func NewCommentModule(router *http.ServeMux, deps CommentModuleDeps) {
 
 	commentService :=
 		NewCommentService(&CommentServiceDeps{VideoRepository: deps.VideoRepository, CommentRepository: commentRepository})
-	NewCommentHandler(router, CommentHandlerDeps{
+	NewCommentHandler(router, &CommentHandlerDeps{
 		CommentService: commentService,
 		Config:         deps.Config,
 		UserProvider:   deps.UserProvider,

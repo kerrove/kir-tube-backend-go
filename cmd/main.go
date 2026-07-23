@@ -13,6 +13,8 @@ import (
 	"go/kir-tube/internal/video"
 	"go/kir-tube/pkg/db"
 	"go/kir-tube/pkg/middleware"
+	"log"
+	"time"
 
 	"net/http"
 )
@@ -98,10 +100,16 @@ func main() {
 	app, port := App()
 
 	server := http.Server{
-		Addr:    ":" + port,
-		Handler: app,
+		Addr:              ":" + port,
+		Handler:           app,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	fmt.Println("📢 Server is listening on port " + port)
-	server.ListenAndServe()
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("🛑 Server failed: %v", err)
+	}
 }

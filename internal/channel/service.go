@@ -4,8 +4,6 @@ import (
 	"errors"
 
 	"gorm.io/gorm"
-
-	"go/kir-tube/configs"
 )
 
 type ToggleSubscribeRes struct {
@@ -13,19 +11,24 @@ type ToggleSubscribeRes struct {
 	IsSubscribed bool   `json:"isSubscribed"`
 }
 
+// ChannelRepositoryPort is the persistence contract the channel service depends
+// on. *ChannelRepository satisfies it.
+type ChannelRepositoryPort interface {
+	FindAll() *[]Channel
+	FindBySlug(slug string) (*ChannelDetails, error)
+	ToggleSubscribe(channelSlug, userId string) (bool, error)
+}
+
 type ChannelServiceDeps struct {
-	Config            *configs.Config
-	ChannelRepository *ChannelRepository
+	ChannelRepository ChannelRepositoryPort
 }
 
 type ChannelService struct {
-	Config            *configs.Config
-	ChannelRepository *ChannelRepository
+	ChannelRepository ChannelRepositoryPort
 }
 
 func NewChannelService(deps *ChannelServiceDeps) *ChannelService {
 	return &ChannelService{
-		Config:            deps.Config,
 		ChannelRepository: deps.ChannelRepository,
 	}
 }

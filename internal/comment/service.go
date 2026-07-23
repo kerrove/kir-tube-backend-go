@@ -23,12 +23,19 @@ type CommentWithUser struct {
 	User CommentUser `json:"user"`
 }
 
+type CommentRepositoryPort interface {
+	Create(userId string, body *CreateCommentReq) (*video.VideoComment, error)
+	Update(commentId, userId string, body *UpdateCommentReq) (*video.VideoComment, error)
+	Delete(commentId, userId string) (bool, error)
+	FindByVideo(publicId string) ([]CommentWithUser, error)
+}
+
 type CommentServiceDeps struct {
-	CommentRepository *CommentRepository
+	CommentRepository CommentRepositoryPort
 	VideoRepository   di.IVideoRepository
 }
 type CommentService struct {
-	CommentRepository *CommentRepository
+	CommentRepository CommentRepositoryPort
 	VideoRepository   di.IVideoRepository
 }
 

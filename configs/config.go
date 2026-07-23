@@ -3,6 +3,7 @@ package configs
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -12,13 +13,14 @@ type Config struct {
 	Auth    AuthConfig
 	Network NetworkConfig
 }
-
 type DbConfig struct {
 	Dsn string
 }
 type AuthConfig struct {
-	Secret string
+	Secret        string
+	SecureCookies bool
 }
+
 type NetworkConfig struct {
 	Port      string
 	Domain    string
@@ -35,7 +37,8 @@ func LoadConfig() *Config {
 			Dsn: os.Getenv("DSN"),
 		},
 		Auth: AuthConfig{
-			Secret: os.Getenv("JWT_SECRET"),
+			Secret:        os.Getenv("JWT_SECRET"),
+			SecureCookies: parseBool(os.Getenv("SECURE_COOKIES")),
 		},
 		Network: NetworkConfig{
 			Port:      os.Getenv("PORT"),
@@ -43,4 +46,9 @@ func LoadConfig() *Config {
 			ClientUrl: os.Getenv("CLIENT_URL"),
 		},
 	}
+}
+
+func parseBool(v string) bool {
+	b, err := strconv.ParseBool(v)
+	return err == nil && b
 }

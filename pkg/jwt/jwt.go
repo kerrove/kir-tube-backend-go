@@ -41,7 +41,7 @@ func (j *JWT) Create(data JWTData, expiresIn string) (string, error) {
 func (j *JWT) Parse(token string) (bool, *JWTData) {
 	t, err := jwt.Parse(token, func(t *jwt.Token) (any, error) {
 		return []byte(j.Secret), nil
-	})
+	}, jwt.WithValidMethods([]string{"HS256"}))
 
 	if err != nil {
 		return false, nil

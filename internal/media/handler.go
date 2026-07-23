@@ -15,13 +15,8 @@ import (
 	"go/kir-tube/pkg/res"
 )
 
-// uploadFormField is the multipart field the client uploads files under,
-// matching the NestJS FilesInterceptor('file').
 const uploadFormField = "file"
-
-// maxUploadMemory caps how much of a multipart upload is buffered in memory
-// before ParseMultipartForm spills to temp files.
-const maxUploadMemory = 32 << 20 // 32 MB
+const maxUploadMemory = 64 << 20 // 64 MB
 
 type IMediaService interface {
 	SaveMedia(files []UploadFile, folder string) ([]MediaResponse, error)
@@ -100,17 +95,12 @@ func (h *MediaHandler) GetProcessingStatus() http.HandlerFunc {
 	}
 }
 
-// Forbidden refuses access to the uploads directory listing, mirroring the
-// NestJS UploadsController.
 func (h *MediaHandler) Forbidden() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Access to this directory is forbidden", http.StatusForbidden)
 	}
 }
 
-// ServeUploads serves a single file from the uploads directory. Directory
-// targets and path-traversal attempts are refused so nothing outside OutputDir
-// is exposed and no listing is produced.
 func (h *MediaHandler) ServeUploads() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rel := strings.TrimPrefix(r.URL.Path, "/uploads/")
@@ -141,8 +131,6 @@ func (h *MediaHandler) ServeUploads() http.HandlerFunc {
 	}
 }
 
-// readUploadFiles pulls every file uploaded under the "file" field into memory
-// as UploadFile values, mirroring Multer's memory storage.
 func readUploadFiles(r *http.Request) ([]UploadFile, error) {
 	if r.MultipartForm == nil {
 		return nil, ErrNoFile
@@ -175,8 +163,6 @@ func readUploadFiles(r *http.Request) ([]UploadFile, error) {
 	return files, nil
 }
 
-// writeMediaError maps a media validation error to a 400 Bad Request; anything
-// else becomes a 500.
 func writeMediaError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrNoFile),

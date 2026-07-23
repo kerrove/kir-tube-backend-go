@@ -2,9 +2,8 @@ package request
 
 import "github.com/go-playground/validator/v10"
 
-func IsValid[T any](payload T) error {
-	validate := validator.New()
-	err := validate.Struct(payload)
+var validate = validator.New()
 
-	return err
+func IsValid[T any](payload T) error {
+	return validate.Struct(payload)
 }

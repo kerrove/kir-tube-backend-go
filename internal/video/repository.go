@@ -365,7 +365,6 @@ func (repo *VideoRepository) FindByPublicIdFull(publicId string) (*Video, error)
 
 	res := repo.Database.DB.
 		Preload("Channel.User").
-		Preload("Channel.Subscribers").
 		Preload("Tags").
 		Preload("Likes").
 		Preload("Comments", func(db *gorm.DB) *gorm.DB {
@@ -633,8 +632,6 @@ func (repo *VideoRepository) FindChannelVideos(channelID, searchTerm string, ski
 	return videos, nil
 }
 
-// CountChannelVideos counts a channel's videos matching the same filter used by
-// FindChannelVideos, for pagination totals.
 func (repo *VideoRepository) CountChannelVideos(channelID, searchTerm string) (int64, error) {
 	var count int64
 
@@ -647,8 +644,6 @@ func (repo *VideoRepository) CountChannelVideos(channelID, searchTerm string) (i
 	return count, nil
 }
 
-// FindById loads a single video by primary key with its associations. It returns
-// gorm.ErrRecordNotFound when no such video exists.
 func (repo *VideoRepository) FindById(id string) (*Video, error) {
 	var video Video
 
@@ -666,8 +661,6 @@ func (repo *VideoRepository) FindById(id string) (*Video, error) {
 	return &video, nil
 }
 
-// resolveTags matches each name to an existing tag or creates it, returning the
-// persisted tags. It is the Go equivalent of Prisma's connectOrCreate.
 func (repo *VideoRepository) resolveTags(names []string) ([]VideoTag, error) {
 	if len(names) == 0 {
 		return nil, nil
@@ -692,8 +685,6 @@ func (repo *VideoRepository) resolveTags(names []string) ([]VideoTag, error) {
 	return tags, nil
 }
 
-// Create publishes a new video for the given channel. The public id is generated
-// here and the video is made public on creation, mirroring the NestJS backend.
 func (repo *VideoRepository) Create(channelID string, input CreateVideoInput) (*Video, error) {
 	tags, err := repo.resolveTags(input.Tags)
 	if err != nil {
@@ -737,10 +728,6 @@ func (repo *VideoRepository) Create(channelID string, input CreateVideoInput) (*
 	return &video, nil
 }
 
-// Update applies a partial change to a video and, when tags are supplied,
-// replaces its whole tag set. It returns gorm.ErrRecordNotFound if the video is
-// missing. Matching the NestJS backend, an update always rewrites the tag set:
-// omitting tags clears them.
 func (repo *VideoRepository) Update(id string, input UpdateVideoInput) (*Video, error) {
 	video, err := repo.FindById(id)
 	if err != nil {

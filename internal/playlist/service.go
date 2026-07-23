@@ -6,12 +6,21 @@ import (
 	"gorm.io/gorm"
 )
 
+// PlaylistRepositoryPort is the persistence contract the playlist service
+// depends on. *PlaylistRepository satisfies it.
+type PlaylistRepositoryPort interface {
+	FindByUserId(string) (*[]Playlist, error)
+	FindById(string) (*Playlist, error)
+	ToggleVideo(playlistId, videoId, userId string) (*ToggleVideoResponse, error)
+	Create(userId string, body *PlaylistRequest) (*Playlist, error)
+}
+
 type PlaylistServiceDeps struct {
-	PlaylistRepository *PlaylistRepository
+	PlaylistRepository PlaylistRepositoryPort
 }
 
 type PlaylistService struct {
-	PlaylistRepository *PlaylistRepository
+	PlaylistRepository PlaylistRepositoryPort
 }
 
 func NewPlaylistService(deps *PlaylistServiceDeps) *PlaylistService {

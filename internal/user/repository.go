@@ -68,8 +68,7 @@ func (repo *UserRepository) FindByVerifyToken(token string) (*User, error) {
 func (repo *UserRepository) FindAll() []User {
 	var users []User
 
-	repo.Database.Table("users").
-		Where("deleted_at is null").
+	repo.Database.Model(&User{}).
 		Select("name,email,id").
 		Order("created_at desc").
 		Scan(&users)

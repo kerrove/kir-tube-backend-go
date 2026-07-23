@@ -42,7 +42,7 @@ func (h *PlaylistHandler) GetUserPlaylist() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, playlist, 200)
+		res.Json(w, playlist, http.StatusOK)
 	}
 }
 func (h *PlaylistHandler) GetPlaylistById() http.HandlerFunc {
@@ -55,7 +55,7 @@ func (h *PlaylistHandler) GetPlaylistById() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, playlist, 200)
+		res.Json(w, playlist, http.StatusOK)
 	}
 }
 func (h *PlaylistHandler) ToggleVideo() http.HandlerFunc {
@@ -75,7 +75,7 @@ func (h *PlaylistHandler) ToggleVideo() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, result, 200)
+		res.Json(w, result, http.StatusOK)
 	}
 }
 func (h *PlaylistHandler) Create() http.HandlerFunc {
@@ -84,15 +84,16 @@ func (h *PlaylistHandler) Create() http.HandlerFunc {
 
 		body, err := request.HandleBody[PlaylistRequest](&w, r)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
 		}
 
 		playlist, err := h.PlaylistService.Create(userId, body)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
 		}
 
-		res.Json(w, playlist, 200)
+		res.Json(w, playlist, http.StatusOK)
 
 	}
 }

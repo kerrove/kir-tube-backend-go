@@ -19,15 +19,13 @@ const (
 )
 
 type MediaServiceDeps struct {
-	// OutputDir is the root uploads directory (files land in OutputDir/<folder>).
-	OutputDir string
+	OutputDir     string
+	PublicBaseURL string
 }
 
 type MediaService struct {
-	outputDir string
-
-	// processingStatus tracks per-file transcoding progress. processVideo runs
-	// in a goroutine, so every access goes through mu.
+	outputDir        string
+	publicBaseURL    string
 	mu               sync.RWMutex
 	processingStatus map[string]float64
 }
@@ -35,13 +33,11 @@ type MediaService struct {
 func NewMediaService(deps *MediaServiceDeps) *MediaService {
 	return &MediaService{
 		outputDir:        deps.OutputDir,
+		publicBaseURL:    strings.TrimRight(deps.PublicBaseURL, "/"),
 		processingStatus: make(map[string]float64),
 	}
 }
 
-// SaveMedia writes the first uploaded file into OutputDir/<folder>. Images are
-// stored as-is; videos are stored and then transcoded to every resolution that
-// fits the source, in the background. It mirrors MediaService.saveMedia.
 func (s *MediaService) SaveMedia(files []UploadFile, folder string) ([]MediaResponse, error) {
 	if folder == "" {
 		folder = "default"
@@ -62,7 +58,7 @@ func (s *MediaService) SaveMedia(files []UploadFile, folder string) ([]MediaResp
 		return nil, err
 	}
 
-	url := fmt.Sprintf("/uploads/%s/%s", folder, uniqueName)
+	url := fmt.Sprintf("%s/%s/%s", s.publicBaseURL, folder, uniqueName)
 
 	if !isVideo(file) {
 		return []MediaResponse{{Url: url, Name: uniqueName}}, nil
@@ -76,7 +72,6 @@ func (s *MediaService) SaveMedia(files []UploadFile, folder string) ([]MediaResp
 
 	s.setStatus(uniqueName, statusQueued)
 
-	// Transcode in the background, exactly like the NestJS .then/.catch chain.
 	go func() {
 		if err := s.processVideo(filePath, uniqueName, folder); err != nil {
 			s.setStatus(uniqueName, statusFailed)

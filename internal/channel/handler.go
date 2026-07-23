@@ -58,7 +58,7 @@ func (h *ChannelHandler) ToggleSubscribe() http.HandlerFunc {
 		result, err := h.ChannelService.ToggleSubscribe(slug, userId)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 

@@ -34,7 +34,7 @@ func (repo *CommentRepository) Update(commentId, userId string, body *UpdateComm
 		return nil, err
 	}
 	if comment.UserID != userId {
-		return nil, err
+		return nil, ErrCommentForbidden
 	}
 
 	updates := map[string]any{}
@@ -56,7 +56,7 @@ func (repo *CommentRepository) Delete(commentId, userId string) (bool, error) {
 		return false, err
 	}
 	if comment.UserID != userId {
-		return false, err
+		return false, ErrCommentForbidden
 	}
 	if err := repo.Database.DB.Delete(&video.VideoComment{}, "id = ?", commentId).Error; err != nil {
 		return false, err

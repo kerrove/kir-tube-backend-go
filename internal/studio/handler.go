@@ -59,7 +59,7 @@ func (h *StudioHandler) GetAll() http.HandlerFunc {
 			return
 		}
 
-		res.Json(w, videos, 200)
+		res.Json(w, videos, http.StatusOK)
 	}
 }
 func (h *StudioHandler) GetById() http.HandlerFunc {
@@ -69,9 +69,10 @@ func (h *StudioHandler) GetById() http.HandlerFunc {
 		video, err := h.StudioService.ById(id)
 		if err != nil {
 			writeServiceError(w, err)
+			return
 		}
 
-		res.Json(w, video, 200)
+		res.Json(w, video, http.StatusOK)
 	}
 }
 func (h *StudioHandler) Create() http.HandlerFunc {
@@ -80,7 +81,7 @@ func (h *StudioHandler) Create() http.HandlerFunc {
 		body, err := request.HandleBody[video.CreateVideoInput](&w, r)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		user, ok := r.Context().Value(middleware.ContextUserKey).(*di.ContextUser)
 		if !ok {
@@ -95,6 +96,7 @@ func (h *StudioHandler) Create() http.HandlerFunc {
 		video, err := h.StudioService.Create(user.Channel.ID, *body)
 		if err != nil {
 			writeServiceError(w, err)
+			return
 		}
 		res.Json(w, video, http.StatusOK)
 	}
@@ -104,13 +106,14 @@ func (h *StudioHandler) Update() http.HandlerFunc {
 		body, err := request.HandleBody[video.UpdateVideoInput](&w, r)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		id := r.PathValue("id")
 
 		video, err := h.StudioService.Update(id, *body)
 		if err != nil {
 			writeServiceError(w, err)
+			return
 		}
 		res.Json(w, video, http.StatusOK)
 	}
@@ -122,6 +125,7 @@ func (h *StudioHandler) Delete() http.HandlerFunc {
 		video, err := h.StudioService.Delete(id)
 		if err != nil {
 			writeServiceError(w, err)
+			return
 		}
 		res.Json(w, video, http.StatusOK)
 	}
@@ -129,7 +133,7 @@ func (h *StudioHandler) Delete() http.HandlerFunc {
 
 func writeServiceError(w http.ResponseWriter, err error) {
 	if errors.Is(err, video.ErrVideoNotFound) || errors.Is(err, gorm.ErrRecordNotFound) {
-		writeServiceError(w, err)
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

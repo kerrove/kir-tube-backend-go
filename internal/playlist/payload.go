@@ -8,5 +8,5 @@ type ToggleVideoRequest struct {
 	VideoId string `json:"videoId" validate:"required"`
 }
 type ToggleVideoResponse struct {
-	Message string `json:"string"`
+	Message string `json:"message"`
 }

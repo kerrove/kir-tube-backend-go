@@ -27,8 +27,7 @@ func NewUserHandler(router *http.ServeMux, deps UserHandlerDeps) {
 	}
 
 	logs.RouteLog(router, "GET /users/profile", middleware.IsAuthed(handler.GetMyProfile(), deps.Config, deps.UserProvider))
-	logs.RouteLog(router, "PUT /users/profile", middleware.IsAuthed(handler.GetMyProfile(), deps.Config, deps.UserProvider))
-	logs.RouteLog(router, "PUT /users/profile/likes", middleware.IsAuthed(handler.GetMyProfile(), deps.Config, deps.UserProvider))
+	logs.RouteLog(router, "PUT /users/profile", middleware.IsAuthed(handler.UpdateMyProfile(), deps.Config, deps.UserProvider))
 }
 
 func (h *UserHandler) GetMyProfile() http.HandlerFunc {
@@ -49,29 +48,21 @@ func (h *UserHandler) GetMyProfile() http.HandlerFunc {
 func (h *UserHandler) UpdateMyProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := request.GetProfileId(w, r)
+		if id == "" {
+			return
+		}
 
-		users, err := h.UserService.GetProfile(id)
+		body, err := request.HandleBody[UpdateProfileReq](&w, r)
+		if err != nil {
+			return
+		}
 
+		profile, err := h.UserService.UpdateProfile(id, body)
 		if err != nil {
 			http.Error(w, ErrUserNotExist, http.StatusNotFound)
 			return
 		}
 
-		res.Json(w, users, http.StatusOK)
-	}
-}
-
-func (h *UserHandler) GetProfileLikes() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := request.GetProfileId(w, r)
-
-		users, err := h.UserService.GetProfile(id)
-
-		if err != nil {
-			http.Error(w, ErrUserNotExist, http.StatusNotFound)
-			return
-		}
-
-		res.Json(w, users, http.StatusOK)
+		res.Json(w, profile, http.StatusOK)
 	}
 }

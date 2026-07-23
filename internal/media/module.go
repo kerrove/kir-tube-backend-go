@@ -9,6 +9,8 @@ import (
 
 const defaultOutputDir = "uploads"
 
+const defaultPublicBaseURL = "/api/uploads"
+
 type MediaModuleDeps struct {
 	Config       *configs.Config
 	UserProvider di.IUserProvider
@@ -24,7 +26,10 @@ func NewMediaModule(router *http.ServeMux, deps MediaModuleDeps) *MediaModule {
 		outputDir = defaultOutputDir
 	}
 
-	mediaService := NewMediaService(&MediaServiceDeps{OutputDir: outputDir})
+	mediaService := NewMediaService(&MediaServiceDeps{
+		OutputDir:     outputDir,
+		PublicBaseURL: defaultPublicBaseURL,
+	})
 
 	NewMediaHandler(router, MediaHandlerDeps{
 		MediaService: mediaService,
