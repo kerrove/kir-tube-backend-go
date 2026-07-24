@@ -32,23 +32,26 @@ func NewUserHandler(router *http.ServeMux, deps UserHandlerDeps) {
 
 func (h *UserHandler) GetMyProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := request.GetProfileId(w, r)
+		user := request.GetProfileUser(w, r)
+		if user == nil {
+			return
+		}
 
-		users, err := h.UserService.GetProfile(id)
-
+		profile, err := h.UserService.GetProfile(user.ID)
 		if err != nil {
 			http.Error(w, ErrUserNotExist, http.StatusNotFound)
 			return
 		}
+		profile.Channel = user.Channel
 
-		res.Json(w, users, http.StatusOK)
+		res.Json(w, profile, http.StatusOK)
 	}
 }
 
 func (h *UserHandler) UpdateMyProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := request.GetProfileId(w, r)
-		if id == "" {
+		user := request.GetProfileUser(w, r)
+		if user == nil {
 			return
 		}
 
@@ -57,11 +60,12 @@ func (h *UserHandler) UpdateMyProfile() http.HandlerFunc {
 			return
 		}
 
-		profile, err := h.UserService.UpdateProfile(id, body)
+		profile, err := h.UserService.UpdateProfile(user.ID, body)
 		if err != nil {
 			http.Error(w, ErrUserNotExist, http.StatusNotFound)
 			return
 		}
+		profile.Channel = user.Channel
 
 		res.Json(w, profile, http.StatusOK)
 	}

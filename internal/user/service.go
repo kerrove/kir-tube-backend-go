@@ -7,6 +7,13 @@ import (
 
 type UserProfile struct {
 	User
+	// VerificationToken shadows the embedded User's json:"-" field so the token
+	// is exposed only on the owner's own profile response, not in every place a
+	// User is serialized.
+	VerificationToken *string `json:"verificationToken"`
+	// Channel is the caller's own channel (nil until they create one). It is set
+	// by the handler from the authenticated ContextUser, so no extra query is run.
+	Channel          *di.ContextChannel       `json:"channel"`
 	SubscribedVideos []di.SubscribedVideo     `json:"subscribedVideos"`
 	Likes            []di.SubscribedVideo     `json:"likes"`
 	Subscriptions    []di.SubscriptionChannel `json:"subscriptions"`
@@ -146,9 +153,10 @@ func (s *UserService) GetProfile(userID string) (*UserProfile, error) {
 	}
 
 	return &UserProfile{
-		User:             *user,
-		SubscribedVideos: subscribedVideos,
-		Likes:            likedVideos,
-		Subscriptions:    subscriptions,
+		User:              *user,
+		VerificationToken: user.VerificationToken,
+		SubscribedVideos:  subscribedVideos,
+		Likes:             likedVideos,
+		Subscriptions:     subscriptions,
 	}, nil
 }

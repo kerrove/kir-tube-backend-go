@@ -1,6 +1,8 @@
 package media
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -19,12 +21,12 @@ const (
 )
 
 type MediaServiceDeps struct {
-	OutputDir     string
+	Storage       ObjectStorage
 	PublicBaseURL string
 }
 
 type MediaService struct {
-	outputDir        string
+	storage          ObjectStorage
 	publicBaseURL    string
 	mu               sync.RWMutex
 	processingStatus map[string]float64
@@ -32,7 +34,7 @@ type MediaService struct {
 
 func NewMediaService(deps *MediaServiceDeps) *MediaService {
 	return &MediaService{
-		outputDir:        deps.OutputDir,
+		storage:          deps.Storage,
 		publicBaseURL:    strings.TrimRight(deps.PublicBaseURL, "/"),
 		processingStatus: make(map[string]float64),
 	}
@@ -44,17 +46,18 @@ func (s *MediaService) SaveMedia(files []UploadFile, folder string) ([]MediaResp
 	}
 	folder = strings.ToLower(folder)
 
-	uploadFolder := filepath.Join(s.outputDir, folder)
-	if err := os.MkdirAll(uploadFolder, 0o755); err != nil {
-		return nil, err
-	}
-
 	file := files[0]
 
 	uniqueName := GenerateFilename(originalName(file))
-	filePath := filepath.Join(uploadFolder, uniqueName)
+	key := folder + "/" + uniqueName
 
-	if err := os.WriteFile(filePath, file.Buffer, 0o644); err != nil {
+	if err := s.storage.Put(
+		context.Background(),
+		key,
+		bytes.NewReader(file.Buffer),
+		file.Size,
+		file.MimeType,
+	); err != nil {
 		return nil, err
 	}
 
@@ -64,8 +67,16 @@ func (s *MediaService) SaveMedia(files []UploadFile, folder string) ([]MediaResp
 		return []MediaResponse{{Url: url, Name: uniqueName}}, nil
 	}
 
-	width, height, err := s.getVideoResolution(filePath)
+	// ffmpeg/ffprobe operate on local paths, so stage the source in a temp file.
+	// The transcoding goroutine removes it when done.
+	srcPath, err := writeTempFile(uniqueName, file.Buffer)
 	if err != nil {
+		return nil, err
+	}
+
+	width, height, err := s.getVideoResolution(srcPath)
+	if err != nil {
+		os.Remove(srcPath)
 		return nil, err
 	}
 	maxResolution := mapResolution(width, height)
@@ -73,7 +84,8 @@ func (s *MediaService) SaveMedia(files []UploadFile, folder string) ([]MediaResp
 	s.setStatus(uniqueName, statusQueued)
 
 	go func() {
-		if err := s.processVideo(filePath, uniqueName, folder); err != nil {
+		defer os.Remove(srcPath)
+		if err := s.processVideo(srcPath, uniqueName, folder, file.MimeType); err != nil {
 			s.setStatus(uniqueName, statusFailed)
 			log.Printf("media: video processing failed: %v", err)
 			return
@@ -99,9 +111,9 @@ func (s *MediaService) setStatus(fileName string, value float64) {
 }
 
 // processVideo transcodes the source into every resolution that does not exceed
-// it, updating the status after each one completes.
-func (s *MediaService) processVideo(inputPath, fileName, folder string) error {
-	width, height, err := s.getVideoResolution(inputPath)
+// it, uploading each variant to MinIO and updating the status after each one.
+func (s *MediaService) processVideo(srcPath, fileName, folder, contentType string) error {
+	width, height, err := s.getVideoResolution(srcPath)
 	if err != nil {
 		return err
 	}
@@ -114,7 +126,7 @@ func (s *MediaService) processVideo(inputPath, fileName, folder string) error {
 	}
 
 	for i, resolution := range targets {
-		if err := s.convertVideo(inputPath, resolution, fileName, folder); err != nil {
+		if err := s.convertVideo(srcPath, resolution, fileName, folder, contentType); err != nil {
 			return err
 		}
 		// Coarser than the original per-frame progress: ffmpeg's stderr would
@@ -127,25 +139,36 @@ func (s *MediaService) processVideo(inputPath, fileName, folder string) error {
 	return nil
 }
 
-// convertVideo runs ffmpeg to resize the source into OutputDir/<folder>/<name>/<file>.
-func (s *MediaService) convertVideo(inputPath string, resolution Resolution, fileName, folder string) error {
-	outputDir := filepath.Join(s.outputDir, folder, resolution.Name)
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return err
-	}
-	outputPath := filepath.Join(outputDir, fileName)
+// convertVideo runs ffmpeg to resize the source into a temp file, then uploads it
+// to MinIO under <folder>/<resolution>/<file>.
+func (s *MediaService) convertVideo(srcPath string, resolution Resolution, fileName, folder, contentType string) error {
+	outPath := srcPath + "." + resolution.Name + filepath.Ext(fileName)
+	defer os.Remove(outPath)
 
 	cmd := exec.Command(
 		"ffmpeg",
 		"-y",
-		"-i", inputPath,
+		"-i", srcPath,
 		"-s", fmt.Sprintf("%dx%d", resolution.Width, resolution.Height),
-		outputPath,
+		outPath,
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ffmpeg %s: %w: %s", resolution.Name, err, out)
 	}
-	return nil
+
+	f, err := os.Open(outPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	key := folder + "/" + resolution.Name + "/" + fileName
+	return s.storage.Put(context.Background(), key, f, info.Size(), contentType)
 }
 
 // ffprobeResult is the slice of ffprobe -show_entries JSON we care about.
@@ -180,6 +203,27 @@ func (s *MediaService) getVideoResolution(filePath string) (width, height int, e
 	}
 
 	return result.Streams[0].Width, result.Streams[0].Height, nil
+}
+
+// writeTempFile stages an upload buffer on local disk (ffmpeg/ffprobe need a
+// path). The caller is responsible for removing the returned file.
+func writeTempFile(name string, buf []byte) (string, error) {
+	f, err := os.CreateTemp("", "kir-tube-*"+filepath.Ext(name))
+	if err != nil {
+		return "", err
+	}
+	path := f.Name()
+
+	if _, err := f.Write(buf); err != nil {
+		f.Close()
+		os.Remove(path)
+		return "", err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(path)
+		return "", err
+	}
+	return path, nil
 }
 
 // isVideo reports whether a file is a video by its mime type.

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
+	"path"
+	"strconv"
 	"strings"
 
 	"go/kir-tube/configs"
@@ -27,27 +27,39 @@ type MediaHandlerDeps struct {
 	MediaService IMediaService
 	Config       *configs.Config
 	UserProvider di.IUserProvider
-	OutputDir    string
+	Storage      ObjectStorage
 }
 type MediaHandler struct {
 	MediaService IMediaService
 	Config       *configs.Config
-	outputDir    string
+	storage      ObjectStorage
 }
 
-func NewMediaHandler(router *http.ServeMux, deps MediaHandlerDeps) {
+// NewMediaHandler wires the media routes. The upload/status endpoints are API
+// routes registered on apiRouter (served under the global /api prefix), while
+// the static file serving is registered on publicRouter (the root mux) so media
+// is reachable at /uploads/... rather than /api/uploads/....
+func NewMediaHandler(apiRouter, publicRouter *http.ServeMux, deps MediaHandlerDeps) {
 	handler := &MediaHandler{
 		MediaService: deps.MediaService,
 		Config:       deps.Config,
-		outputDir:    deps.OutputDir,
+		storage:      deps.Storage,
 	}
 
-	logs.RouteLog(router, "POST /upload-file", middleware.IsAuthed(handler.UploadMediaFile(), deps.Config, deps.UserProvider))
-	logs.RouteLog(router, "GET /upload-file/status/{fileName}", middleware.IsAuthed(handler.GetProcessingStatus(), deps.Config, deps.UserProvider))
+	logs.RouteLog(apiRouter, "POST /upload-file", middleware.IsAuthed(handler.UploadMediaFile(), deps.Config, deps.UserProvider))
+	logs.RouteLog(apiRouter, "GET /upload-file/status/{fileName}", middleware.IsAuthed(handler.GetProcessingStatus(), deps.Config, deps.UserProvider))
 
-	logs.RouteLog(router, "GET /uploads", handler.Forbidden())
-	logs.RouteLog(router, "GET /uploads/index.html", handler.Forbidden())
-	logs.RouteLog(router, "GET /uploads/{path...}", handler.ServeUploads())
+	// Public file serving at the root: /uploads/...
+	handler.registerServeRoutes(publicRouter)
+	// Backward-compatible alias for rows persisted before the split, whose URLs
+	// still point at /api/uploads/... (apiRouter is mounted under /api).
+	handler.registerServeRoutes(apiRouter)
+}
+
+func (h *MediaHandler) registerServeRoutes(router *http.ServeMux) {
+	logs.RouteLog(router, "GET /uploads", h.Forbidden())
+	logs.RouteLog(router, "GET /uploads/index.html", h.Forbidden())
+	logs.RouteLog(router, "GET /uploads/{path...}", h.ServeUploads())
 }
 
 func (h *MediaHandler) UploadMediaFile() http.HandlerFunc {
@@ -105,29 +117,35 @@ func (h *MediaHandler) ServeUploads() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rel := strings.TrimPrefix(r.URL.Path, "/uploads/")
 
-		root, err := filepath.Abs(h.outputDir)
+		// Normalize into a clean, bucket-relative key and reject traversal.
+		key := strings.TrimPrefix(path.Clean("/"+rel), "/")
+		if key == "" || strings.HasPrefix(key, "../") || strings.Contains(key, "/../") {
+			http.Error(w, "Access to this directory is forbidden", http.StatusForbidden)
+			return
+		}
+
+		obj, info, err := h.storage.Get(r.Context(), key)
 		if err != nil {
+			if errors.Is(err, ErrObjectNotFound) {
+				http.NotFound(w, r)
+				return
+			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-		full := filepath.Join(root, filepath.Clean("/"+rel))
+		defer obj.Close()
 
-		if full != root && !strings.HasPrefix(full, root+string(os.PathSeparator)) {
-			http.Error(w, "Access to this directory is forbidden", http.StatusForbidden)
-			return
+		if info.ContentType != "" {
+			w.Header().Set("Content-Type", info.ContentType)
+		}
+		if info.Size > 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
 		}
 
-		info, err := os.Stat(full)
-		if err != nil {
-			http.NotFound(w, r)
+		if _, err := io.Copy(w, obj); err != nil {
+			// Response is likely already partially written; nothing to recover.
 			return
 		}
-		if info.IsDir() {
-			http.Error(w, "Access to this directory is forbidden", http.StatusForbidden)
-			return
-		}
-
-		http.ServeFile(w, r, full)
 	}
 }
 

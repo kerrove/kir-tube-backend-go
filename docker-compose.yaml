@@ -1,6 +1,19 @@
 name: kir-tube
 services:
-  database:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8000:8000'
+    networks:
+      - kir-tube-network
+    env_file:
+      - ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
     container_name: kir-tube-db
     image: postgres:alpine
     ports:
@@ -9,6 +22,13 @@ services:
       - ./.env
     volumes:
       - postgres_data:/data/postgres
+    networks:
+      - kir-tube-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 5
   minio:
     container_name: minio
     image: minio/minio
@@ -21,6 +41,11 @@ services:
       - ./.env
     command: server --console-address ":9001" /data
     restart: always
+    networks:
+      - kir-tube-network
 volumes:
   postgres_data:
   minio-data:
+networks:
+  kir-tube-network:
+    driver: bridge
